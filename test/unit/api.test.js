@@ -19,6 +19,7 @@ describe('api', () => {
     CONFIG.outputDir = tmpDir;
     CONFIG.throttleMs = 0;
     CONFIG.conversationsPerPage = 28;
+    CONFIG.currentUserId = 'user-current';
     initPaths();
 
     ({ fetchConversationListIncremental, fetchProjectList, fetchProjectConversations } = require('../../lib/api'));
@@ -114,9 +115,9 @@ describe('api', () => {
         makeSidebarResponse([makeGizmo('proj-1')]),
         {
           items: [
-            { id: 'c1', title: 'Chat 1' },
-            { id: 'c2', title: 'Chat 2' },
-            { id: 'c3', title: 'Chat 3' },
+            { id: 'c1', title: 'Chat 1', owner: { user_id: 'user-current' } },
+            { id: 'c2', title: 'Chat 2', owner: { user_id: 'user-current' } },
+            { id: 'c3', title: 'Chat 3', owner: { user_id: 'user-current' } },
           ],
           cursor: null,
         },
@@ -133,6 +134,50 @@ describe('api', () => {
       // Verify the persisted index also updated
       const saved = JSON.parse(fs.readFileSync(PATHS.projectIndexFile, 'utf8'));
       expect(saved[0].conversation_count).toBe(3);
+    });
+  });
+
+  describe('fetchProjectConversations — ownership filtering', () => {
+    test('keeps only conversations created by the authenticated user', async () => {
+      mockFetchPages([{
+        items: [
+          { id: 'mine-1', title: 'Mine', owner: { user_id: 'user-current__workspace-1' } },
+          { id: 'theirs-1', title: 'Theirs', owner: { user_id: 'user-other__workspace-1' } },
+          { id: 'unknown-1', title: 'Unknown' },
+        ],
+        cursor: null,
+      }]);
+
+      const progress = makeProgress();
+      const project = { id: 'proj-owned-filter', name: 'Shared Project' };
+      const conversations = await fetchProjectConversations('token', project, progress);
+
+      expect(conversations.map(c => c.id)).toEqual(['mine-1']);
+      const saved = JSON.parse(fs.readFileSync(
+        path.join(PATHS.projectsDir, 'Shared_Project', 'conversation-index.json'),
+        'utf8'
+      ));
+      expect(saved.map(c => c.id)).toEqual(['mine-1']);
+      expect(project.conversation_count).toBe(1);
+    });
+
+    test('sanitizes a previously completed index before returning it', async () => {
+      const project = { id: 'proj-resume', name: 'Resume Project' };
+      const projectDir = path.join(PATHS.projectsDir, 'Resume_Project');
+      fs.mkdirSync(projectDir, { recursive: true });
+      fs.writeFileSync(path.join(projectDir, 'conversation-index.json'), JSON.stringify([
+        { id: 'mine-2', owner: { user_id: 'user-current' } },
+        { id: 'theirs-2', owner: { user_id: 'user-other' } },
+      ]));
+      const progress = makeProgress({
+        projects: {
+          'proj-resume': { name: project.name, indexingComplete: true, lastCursor: null, downloadedIds: [] },
+        },
+      });
+
+      const conversations = await fetchProjectConversations('token', project, progress);
+      expect(conversations.map(c => c.id)).toEqual(['mine-2']);
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 

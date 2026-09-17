@@ -73,6 +73,15 @@ describe('CLI failure cases', () => {
     expect(stdout).not.toContain('--non-interactive requires --bearer');
   });
 
+  test('rejects a copied Cookie value containing localized UI text before network calls', () => {
+    const { stdout, exitCode } = run(['--non-interactive', '--bearer', 'fake'], {
+      env: { ...process.env, CHATGPT_SESSION_COOKIE: 'session=value; 방문 헤더', NODE_ENV: 'test' },
+    });
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain('Invalid CHATGPT_SESSION_COOKIE');
+    expect(stdout).toContain('Copy only the Cookie request-header value');
+  });
+
   test('--format with invalid value exits with error', () => {
     const { stdout, exitCode } = run(['--bearer', 'fake', '--non-interactive', '--format', 'xml']);
     expect(exitCode).toBe(1);

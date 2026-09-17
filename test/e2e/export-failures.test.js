@@ -152,7 +152,7 @@ describe('export flow - failure cases (e2e)', () => {
     expect(jsonFiles.length).toBe(1);
   });
 
-  test('run() prints summary even on auth error before exiting', async () => {
+  test('run() prints an incomplete summary on auth error without forcing process exit', async () => {
     CONFIG.includeProjects = false;
     CONFIG.showSummary = true;
 
@@ -160,19 +160,12 @@ describe('export flow - failure cases (e2e)', () => {
       ok: false, status: 401, statusText: 'Unauthorized',
     });
 
-    // Mock process.exit to prevent actual exit
-    const mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('process.exit called');
-    });
-
     const { run } = require('../../lib/exporter');
 
-    await expect(run('expired-token')).rejects.toThrow('process.exit called');
+    await expect(run('expired-token')).rejects.toMatchObject({ authError: true });
 
     const logCalls = console.log.mock.calls.map(c => c.join(' ')).join('\n');
-    expect(logCalls).toContain('Export Complete!');
-
-    mockExit.mockRestore();
+    expect(logCalls).toContain('Export Incomplete');
   });
 
   test('empty conversation list results in zero counts', async () => {

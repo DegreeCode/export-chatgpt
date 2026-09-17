@@ -80,6 +80,7 @@ The script tracks progress automatically:
 ```
 --bearer <token>        Bearer/access token (or set CHATGPT_BEARER_TOKEN env var; prompted if omitted)
 --token <token>         Session token (alternative auth, personal accounts only; or set CHATGPT_SESSION_TOKEN)
+--session-cookie <value> Browser Cookie header for Library downloads (or set CHATGPT_SESSION_COOKIE)
 --account-id <id>       ChatGPT Teams account ID (auto-detected from token when possible)
 -o, --output <dir>      Output directory (default: ./exports)
 --format <format>       Export format: json | markdown | both (default: both)
@@ -109,6 +110,18 @@ To avoid having to paste your token each time:
 export CHATGPT_BEARER_TOKEN="eyJ..."
 npx export-chatgpt
 ```
+
+Some Library-backed files use a `chatgpt.com/api/library/...` web route that
+also requires your current browser session. Copy the complete `Cookie` request
+header from that request in DevTools and provide it through the environment so
+it does not appear in shell history:
+
+```bash
+export CHATGPT_SESSION_COOKIE="__Secure-authjs.session-token.0=...; __Secure-authjs.session-token.1=..."
+```
+
+The cookie is sent only to `chatgpt.com`, never to external signed download
+hosts.
 
 ### Interactive Mode
 

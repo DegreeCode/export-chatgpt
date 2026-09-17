@@ -30,6 +30,7 @@ describe('project-level file downloads (e2e)', () => {
     CONFIG.convFilter = null;
     CONFIG.projFilter = null;
     CONFIG.verbose = false;
+    CONFIG.currentUserId = 'user-test';
     initPaths();
   });
 
@@ -147,6 +148,7 @@ describe('project-level file downloads (e2e)', () => {
     const projectConv = {
       id: 'conv-proj-001', title: 'Project Chat',
       create_time: 1700000000, update_time: 1700001000,
+      owner: { user_id: 'user-test__workspace-1' },
     };
 
     const fullConv = {
@@ -280,6 +282,7 @@ describe('project-level file downloads (e2e)', () => {
     const projectConv = {
       id: 'conv-active-001', title: 'Active Chat',
       create_time: 1700000000, update_time: 1700001000,
+      owner: { user_id: 'user-test__workspace-1' },
     };
 
     const fullConv = {

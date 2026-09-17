@@ -17,6 +17,7 @@ describe('config', () => {
       expect(CONFIG.conversationsPerPage).toBe(28);
       expect(CONFIG.exportFormat).toBe('both');
       expect(CONFIG.accountId).toBeNull();
+      expect(CONFIG.sessionCookie).toBeNull();
       expect(CONFIG.updateExisting).toBe(false);
       expect(CONFIG.includeProjects).toBe(true);
       expect(CONFIG.projectsOnly).toBe(false);

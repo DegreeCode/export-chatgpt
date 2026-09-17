@@ -214,6 +214,25 @@ describe('formatter', () => {
       expect(result).toContain('![image](files/abc123.png)');
     });
 
+    test('encodes hash characters in composite image asset links', () => {
+      CONFIG.downloadFiles = true;
+      const { extractMessageContent } = load();
+      const msg = {
+        content: {
+          content_type: 'multimodal_text',
+          parts: [{
+            content_type: 'image_asset_pointer',
+            asset_pointer: 'sediment://asset#file_123#p_3.image.jpg',
+          }],
+        },
+        metadata: {},
+      };
+
+      expect(extractMessageContent(msg)).toContain(
+        '![image](files/asset%23file_123%23p_3.image.jpg)'
+      );
+    });
+
     test('handles multimodal text with images when downloadFiles is false', () => {
       CONFIG.downloadFiles = false;
       const { extractMessageContent } = load();
