@@ -75,6 +75,8 @@ A Node.js CLI tool that bulk-exports all ChatGPT conversations via the ChatGPT b
 | `--update` | boolean flag | `false` | Re-download and overwrite existing conversations |
 | `--no-projects` | boolean flag | — | Skip project conversations (projects are exported by default) |
 | `--projects-only` | boolean flag | `false` | Export only project conversations (skip regular) |
+| `--include-library` | boolean flag | `false` | Also export owned Library folders, files, and all versions |
+| `--library-only` | boolean flag | `false` | Export only the owned Library; skip conversations and projects |
 | `--no-files` | boolean flag | — | Skip ALL file downloads (overrides granular flags below) |
 | `--no-images` | boolean flag | — | Skip downloading DALL-E images |
 | `--no-canvas` | boolean flag | — | Skip downloading canvas documents |
@@ -86,6 +88,7 @@ A Node.js CLI tool that bulk-exports all ChatGPT conversations via the ChatGPT b
 
 - **Projects:** Exported by default. Use `--no-projects` to skip, or `--projects-only` to export only projects.
 - `--projects-only` implies project export and skips the regular conversation export.
+- **Library:** Not exported by default. `--include-library` adds it to the normal export; `--library-only` enables it and skips both conversation modes.
 - **Files:** All file types downloaded by default. `--no-files` overrides all granular flags (`--no-images`, `--no-canvas`, `--no-attachments`).
 - `--delay` must be a non-negative integer; invalid values fall back to the default of 1500ms with a warning.
 - `--account-id` is auto-detected from the JWT payload when not provided explicitly.
@@ -185,7 +188,22 @@ GET {download_url}
 - Returns binary file content
 - Do NOT cache signed URLs; fetch fresh for each download
 
-### 5.4 Deep Research (Optional)
+### 5.4 ChatGPT Library (Optional)
+
+These are private ChatGPT web endpoints and may change without notice.
+
+```
+GET /backend-api/files/library/nodes?hydrate_folder_thumbnails=true&include_onedrive=true&include_folder_counts=true&include_saved_entities=true[&cursor={cursor}][&parent_directory_id={directory_id}]
+GET /backend-api/files/library/files/{library_file_id}/versions?limit=20[&cursor={cursor}]
+GET /backend-api/files/download/{file_id}?inline=false
+```
+
+- Paginate the top-level node list and every discovered directory until each cursor is `null`.
+- Export only nodes whose `access_kind` is `owned`.
+- Paginate every file's version list and download each backing `file_id`.
+- Signed download URLs are fetched just in time and are never persisted with their query string.
+
+### 5.5 Deep Research (Optional)
 
 #### Stream Research Task Progress
 
@@ -245,6 +263,18 @@ GET /backend-api/tasks/{task_id}/stream?parent_conversation_id={id}&message_id={
    d. Track file ID as downloaded
 ```
 
+### 6.4 Library Export
+
+```
+1. Paginate /files/library/nodes for the global Library view
+2. Recursively paginate the same endpoint for every owned directory
+3. Save a resumable partial index after every page
+4. For each owned file, paginate /versions until cursor is null
+5. Download every version through /files/download/{file_id}?inline=false
+6. Reuse an already-downloaded conversation/project file when its file_id matches
+7. Save per-file versions.json and the final library-index.json
+```
+
 ---
 
 ## 7. Output Structure
@@ -269,6 +299,15 @@ GET /backend-api/tasks/{task_id}/stream?parent_conversation_id={id}&message_id={
 │   │   │   └── {file_id}.{ext}
 │   │   └── conversation-index.json          # Per-project conversation metadata
 │   └── project-index.json
+├── library/                                 # Present with --include-library/--library-only
+│   ├── library-index.json                   # Owned nodes, versions, and local status
+│   └── files/
+│       └── {Folder}__{id}/                  # Recursive Library folder hierarchy
+│           ├── .directory.json
+│           └── {File}__{id}/
+│               ├── versions.json
+│               ├── v000_{filename}
+│               └── v001_{filename}
 ├── conversation-index.json                  # Regular conversation metadata
 └── .export-progress.json                    # Resumption state
 ```
@@ -509,7 +548,7 @@ This is optional and can be captured as supplementary metadata alongside the con
 }
 ```
 
-### 12.2 Extended Schema (with Projects & Files)
+### 12.2 Extended Schema (with Projects, Files & Library)
 
 ```json
 {
@@ -528,7 +567,13 @@ This is optional and can be captured as supplementary metadata alongside the con
     }
   },
 
-  "downloadedFileIds": []
+  "downloadedFileIds": [],
+
+  "libraryIndexingComplete": false,
+  "libraryDownloadComplete": false,
+  "libraryLastCursor": null,
+  "libraryDownloadedFileIds": [],
+  "libraryFailedFileIds": {}
 }
 ```
 
@@ -539,7 +584,9 @@ This is optional and can be captured as supplementary metadata alongside the con
 3. For each project: if `indexingComplete: false` → resume from project's `lastCursor`
 4. Skip conversations in `downloadedIds` (unless `--update`)
 5. Skip files in `downloadedFileIds`
-6. On auth error → save all progress, exit with message to refresh token
+6. Resume an interrupted Library node scan from its partial index and cursor
+7. Skip complete Library versions by local file size; retry recorded failures only with `--retry-failed-files`
+8. On auth error → save all progress, exit with message to refresh token
 
 ---
 

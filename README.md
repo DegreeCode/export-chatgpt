@@ -61,6 +61,12 @@ exports/{user_id}
 │   │   ├── markdown/
 │   │   └── files/
 │   └── project-index.json
+├── library/                       # Optional ChatGPT Library export
+│   ├── library-index.json
+│   └── files/
+│       └── {Folder}__{id}/{File}__{id}/
+│           ├── versions.json
+│           └── v000_{filename}
 ├── conversation-index.json
 └── .export-progress.json          # Resumption state
 ```
@@ -88,6 +94,8 @@ The script tracks progress automatically:
 --update                Re-download and overwrite existing conversations
 --no-projects           Skip project conversations (projects are exported by default)
 --projects-only         Export only project conversations (skip regular)
+--include-library       Also export owned Library folders, files, and all file versions
+--library-only          Export only the owned Library (skip conversations and projects)
 --no-files              Skip ALL file downloads
 --no-images             Skip downloading DALL-E images
 --no-canvas             Skip downloading canvas documents
@@ -139,6 +147,12 @@ npx export-chatgpt --no-projects
 
 # Only project conversations, skip file downloads
 npx export-chatgpt --projects-only --no-files
+
+# Export conversations, projects, and the complete owned Library
+npx export-chatgpt --include-library
+
+# Export only the complete owned Library
+npx export-chatgpt --library-only
 
 # Export only JSON format (default is both json and markdown)
 npx export-chatgpt --format json

@@ -19,6 +19,7 @@ describe('exporter', () => {
     return {
       regular: { success: 0, skip: 0, update: 0, error: 0, fileCount: 0, ...overrides.regular },
       projects: { count: 0, conversations: 0, success: 0, skip: 0, update: 0, error: 0, fileCount: 0, ...overrides.projects },
+      library: overrides.library || null,
     };
   }
 
@@ -151,6 +152,27 @@ describe('exporter', () => {
       printSummary(makeSummary({ projects: { count: 2 } }));
       const output = logSpy.mock.calls.map(c => c[0]).join('\n');
       expect(output).toContain('2 found');
+    });
+
+    test('shows recursive Library and version results separately', () => {
+      printSummary(makeSummary({ library: {
+        files: 10,
+        directories: 3,
+        versions: 14,
+        downloaded: 8,
+        reused: 2,
+        existing: 3,
+        filtered: 0,
+        failed: 1,
+        sharedSkipped: 4,
+      } }));
+      const output = logSpy.mock.calls.map(c => c[0]).join('\n');
+      expect(output).toContain('Library:');
+      expect(output).toContain('10 files');
+      expect(output).toContain('3 folders');
+      expect(output).toContain('14 versions');
+      expect(output).toContain('2 reused');
+      expect(output).toContain('4 shared/unknown skipped');
     });
   });
 });

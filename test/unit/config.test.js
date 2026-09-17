@@ -21,6 +21,8 @@ describe('config', () => {
       expect(CONFIG.updateExisting).toBe(false);
       expect(CONFIG.includeProjects).toBe(true);
       expect(CONFIG.projectsOnly).toBe(false);
+      expect(CONFIG.includeLibrary).toBe(false);
+      expect(CONFIG.libraryOnly).toBe(false);
       expect(CONFIG.downloadFiles).toBe(true);
       expect(CONFIG.downloadImages).toBe(true);
       expect(CONFIG.downloadCanvas).toBe(true);
@@ -53,6 +55,9 @@ describe('config', () => {
       expect(PATHS.filesDir).toContain('files');
       expect(PATHS.projectsDir).toContain('projects');
       expect(PATHS.projectIndexFile).toContain('project-index.json');
+      expect(PATHS.libraryDir).toContain('library');
+      expect(PATHS.libraryFilesDir).toContain('files');
+      expect(PATHS.libraryIndexFile).toContain('library-index.json');
 
       // All paths should contain the output dir base name (cross-platform)
       for (const val of Object.values(PATHS)) {

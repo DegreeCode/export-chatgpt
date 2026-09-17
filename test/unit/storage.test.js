@@ -85,6 +85,11 @@ describe('storage', () => {
         projects: {},
         downloadedFileIds: [],
         failedFileIds: {},
+        libraryIndexingComplete: false,
+        libraryDownloadComplete: false,
+        libraryLastCursor: null,
+        libraryDownloadedFileIds: [],
+        libraryFailedFileIds: {},
       });
     });
 
@@ -98,6 +103,11 @@ describe('storage', () => {
         projects: { proj1: { downloadedIds: ['c1'] } },
         downloadedFileIds: ['f1'],
         failedFileIds: { 'f2': 'file_not_found' },
+        libraryIndexingComplete: true,
+        libraryDownloadComplete: true,
+        libraryLastCursor: null,
+        libraryDownloadedFileIds: ['library-file'],
+        libraryFailedFileIds: {},
       };
       saveProgress(data);
       const loaded = loadProgress();
@@ -117,6 +127,11 @@ describe('storage', () => {
       expect(loaded.failedFileIds).toEqual({});
       expect(loaded.projectsIndexingComplete).toBe(false);
       expect(loaded.projectsLastCursor).toBeNull();
+      expect(loaded.libraryIndexingComplete).toBe(false);
+      expect(loaded.libraryDownloadComplete).toBe(false);
+      expect(loaded.libraryLastCursor).toBeNull();
+      expect(loaded.libraryDownloadedFileIds).toEqual([]);
+      expect(loaded.libraryFailedFileIds).toEqual({});
     });
 
     test('returns default for corrupted progress file', () => {

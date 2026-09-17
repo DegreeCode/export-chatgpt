@@ -127,6 +127,12 @@ describe('CLI flag parsing', () => {
     expect(stdout).toContain('--retry-failed-files');
   });
 
+  test('--help shows Library export flags', () => {
+    const { stdout } = run(['--help']);
+    expect(stdout).toContain('--include-library');
+    expect(stdout).toContain('--library-only');
+  });
+
   test('-N shorthand works like --max N', () => {
     // -3 should be converted to --max 3; will fail on API but not on flag parsing
     const { stdout, exitCode } = run(['-3', '--bearer', 'fake', '--non-interactive']);
@@ -178,5 +184,12 @@ describe('CLI config propagation', () => {
   test('shows project filter message when --proj is passed', () => {
     const { stdout } = run(['--bearer', 'fake', '--non-interactive', '--proj', 'proj-111']);
     expect(stdout).toContain('Project filter');
+  });
+
+  test('shows Library-only mode and skips conversation sections', () => {
+    const { stdout } = run(['--bearer', 'fake', '--non-interactive', '--library-only', '--throttle', '0']);
+    expect(stdout).toContain('Library export: Library only');
+    expect(stdout).not.toContain('=== Regular Conversations ===');
+    expect(stdout).not.toContain('=== Project Conversations ===');
   });
 });
