@@ -236,8 +236,8 @@ GET /backend-api/tasks/{task_id}/stream?parent_conversation_id={id}&message_id={
 ### 6.3 File Download Flow
 
 ```
-1. Scan conversation JSON for asset_pointer references in multimodal_text parts
-2. Extract file ID: strip "sediment://" prefix
+1. Scan conversation JSON for `asset_pointer`, `metadata.attachments`, and `metadata.content_references[type=file]`
+2. Extract the resolver file ID and retain filename plus Library metadata when present
 3. For each unique file ID (not already downloaded):
    a. GET /files/download/{file_id}?conversation_id={id}&inline=false
    b. Fetch the signed download_url

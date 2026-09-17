@@ -185,6 +185,57 @@ describe('downloader', () => {
       ]);
     });
 
+    test('extracts Pro and Work files from content references', () => {
+      const data = {
+        id: 'conv-work',
+        mapping: {
+          node1: {
+            message: {
+              content: { content_type: 'text', parts: ['Download'] },
+              metadata: {
+                content_references: [{
+                  type: 'file',
+                  id: 'file_work_zip',
+                  name: 'source-code.zip',
+                  source: 'my_files',
+                  library_file_id: 'libfile_work_zip',
+                }],
+              },
+            },
+          },
+        },
+      };
+
+      expect(extractFileReferences(data)).toEqual([
+        expect.objectContaining({
+          fileId: 'file_work_zip',
+          conversationId: 'conv-work',
+          type: 'attachment',
+          filename: 'source-code.zip',
+          libraryFileId: 'libfile_work_zip',
+          source: 'my_files',
+        }),
+      ]);
+    });
+
+    test('keeps separate versions of the same Library file', () => {
+      const data = {
+        id: 'conv-work-versions',
+        mapping: {
+          v0: { message: { content: {}, metadata: { content_references: [
+            { type: 'file', id: 'file_version_0', name: 'site.zip', library_file_id: 'libfile_site' },
+          ] } } },
+          v1: { message: { content: {}, metadata: { content_references: [
+            { type: 'file', id: 'file_version_1', name: 'site.zip', library_file_id: 'libfile_site' },
+          ] } } },
+        },
+      };
+
+      const refs = extractFileReferences(data);
+      expect(refs.map(ref => ref.fileId)).toEqual(['file_version_0', 'file_version_1']);
+      expect(refs.every(ref => ref.libraryFileId === 'libfile_site')).toBe(true);
+    });
+
     test('deduplicates files represented in both content and metadata', () => {
       const data = {
         id: 'conv-duplicate',
@@ -206,6 +257,39 @@ describe('downloader', () => {
       const refs = extractFileReferences(data);
       expect(refs).toHaveLength(1);
       expect(refs[0]).toEqual(expect.objectContaining({ fileId: 'file-image', filename: 'image.png', type: 'image' }));
+    });
+
+    test('retains Library metadata when a file has multiple representations', () => {
+      const data = {
+        id: 'conv-library-duplicate',
+        mapping: {
+          node1: {
+            message: {
+              content: {
+                content_type: 'multimodal_text',
+                parts: [{ content_type: 'image_asset_pointer', asset_pointer: 'file-service://file-image' }],
+              },
+              metadata: {
+                attachments: [{ id: 'file-image', name: 'image.png', mime_type: 'image/png' }],
+                content_references: [{
+                  type: 'file', id: 'file-image', name: 'image.png',
+                  library_file_id: 'libfile-image', source: 'my_files',
+                }],
+              },
+            },
+          },
+        },
+      };
+
+      expect(extractFileReferences(data)).toEqual([
+        expect.objectContaining({
+          fileId: 'file-image',
+          filename: 'image.png',
+          type: 'image',
+          libraryFileId: 'libfile-image',
+          source: 'my_files',
+        }),
+      ]);
     });
   });
 
@@ -523,7 +607,7 @@ describe('downloader', () => {
         expect(downloaded).toBe(1);
         expect(progress.downloadedFileIds).toContain('file-backfill');
         expect(progress.failedFileIds['file-backfill']).toBeUndefined();
-        expect(progress.fileResolverVersion).toBe(3);
+        expect(progress.fileResolverVersion).toBe(4);
         expect(fs.existsSync(path.join(PATHS.filesDir, 'file-backfill.txt'))).toBe(true);
         expect(global.fetch.mock.calls.some(([url]) => url.includes('/conversation/conv-backfill'))).toBe(false);
       } finally {

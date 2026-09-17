@@ -173,7 +173,7 @@ The Markdown output includes YAML frontmatter and handles multiple content types
 |---|---|
 | Text messages | Standard Markdown |
 | Code results | Fenced code blocks |
-| Images/files | `![image](files/{id}.ext)` links or `[Image: {id}]` |
+| Images/files | `![image](files/{id}.ext)` links or `[Image: {id}]`; Work `sandbox:` file links are rewritten to downloaded files |
 | Canvas documents | `![image](files/{id}.ext)` links |
 | Browsing results | Blockquote with "Browsing Result" header |
 | Thinking/reasoning (o1/o3) | Collapsible `<details>` block |
@@ -219,9 +219,11 @@ npx export-chatgpt --throttle 90
 2. Incrementally fetches the conversation list via `/backend-api/conversations` (28 per page), saving progress after each page
 3. Downloads each conversation's full content via `/backend-api/conversation/{id}`, tracking completed downloads
 4. Fetches the project list via `/backend-api/gizmos/snorlax/sidebar`, then indexes and downloads each project's conversations (use `--no-projects` to skip)
-5. Scans conversation data for file references (`image_asset_pointer`, `canvas_asset_pointer`) and downloads via `/backend-api/files/download/{id}` (use `--no-files` to skip)
+5. Scans conversation data for file references (`asset_pointer`, attachments, and Pro/Work `content_references`) and downloads via the available file resolver routes (use `--no-files` to skip)
 6. Saves to JSON and/or Markdown files
 7. On auth failure, saves all progress and exits — re-running skips already-completed work
+
+Markdown follows the branch selected by the conversation's `current_node`, so edited or regenerated Pro responses are not replaced by an abandoned first-child branch.
 
 ## License
 

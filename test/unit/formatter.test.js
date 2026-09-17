@@ -175,6 +175,31 @@ describe('formatter', () => {
       const messages = extractMessagesInOrder(conversation);
       expect(messages).toHaveLength(1);
     });
+
+    test('follows the branch selected by current_node instead of the first child', () => {
+      const { extractMessagesInOrder } = load();
+      const conversation = {
+        current_node: 'selected-reply',
+        mapping: {
+          root: { parent: null, children: ['prompt'], message: null },
+          prompt: {
+            parent: 'root', children: ['abandoned-reply', 'selected-reply'],
+            message: { content: { content_type: 'text', parts: ['Question'] }, author: { role: 'user' } },
+          },
+          'abandoned-reply': {
+            parent: 'prompt', children: [],
+            message: { content: { content_type: 'text', parts: ['Wrong branch'] }, author: { role: 'assistant' } },
+          },
+          'selected-reply': {
+            parent: 'prompt', children: [],
+            message: { content: { content_type: 'text', parts: ['Selected branch'] }, author: { role: 'assistant' } },
+          },
+        },
+      };
+
+      const messages = extractMessagesInOrder(conversation);
+      expect(messages.map(message => message.content.parts[0])).toEqual(['Question', 'Selected branch']);
+    });
   });
 
   describe('extractMessageContent', () => {
@@ -182,6 +207,28 @@ describe('formatter', () => {
       const { extractMessageContent } = load();
       const msg = { content: { content_type: 'text', parts: ['Hello world'] }, metadata: {} };
       expect(extractMessageContent(msg)).toBe('Hello world');
+    });
+
+    test('rewrites Work sandbox file links to downloaded content-reference files', () => {
+      CONFIG.downloadFiles = true;
+      const { extractMessageContent } = load();
+      const msg = {
+        content: {
+          content_type: 'text',
+          parts: ['[Download](sandbox:/workspace/scratch/run/source-code.zip)'],
+        },
+        metadata: {
+          content_references: [{
+            type: 'file',
+            id: 'file_work_zip',
+            name: 'source-code.zip',
+            library_file_id: 'libfile_work_zip',
+          }],
+        },
+      };
+
+      expect(extractMessageContent(msg))
+        .toBe('[Download](files/file_work_zip.zip)');
     });
 
     test('extracts code content', () => {
