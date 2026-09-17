@@ -291,6 +291,48 @@ describe('downloader', () => {
       expect(global.fetch.mock.calls[1][0])
         .toContain('/conversation/conv-123/attachment/file_123/download');
     });
+
+    test('falls back to the file-service resolver after both conversation routes return 404', async () => {
+      global.fetch = jest.fn()
+        .mockResolvedValueOnce({ ok: false, status: 404, statusText: 'Not Found' })
+        .mockResolvedValueOnce({ ok: false, status: 404, statusText: 'Not Found' })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'success', download_url: 'https://cdn.example.com/recovered.pdf' }),
+        });
+
+      const result = await getFileDownloadUrl('secret', 'file_123', 'conv-123');
+
+      expect(result.status).toBe('success');
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+      expect(global.fetch.mock.calls[2][0])
+        .toBe('https://chatgpt.com/backend-api/files/file_123/download');
+    });
+
+    test('falls back after structured file_not_found responses from both conversation routes', async () => {
+      global.fetch = jest.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'error', error_code: 'file_not_found' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'error', error_code: 'file_not_found' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'success', download_url: 'https://cdn.example.com/recovered.pdf' }),
+        });
+
+      const result = await getFileDownloadUrl('secret', 'file_123', 'conv-123');
+
+      expect(result.status).toBe('success');
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
   });
 
   describe('downloadFile — credential forwarding', () => {
@@ -373,6 +415,54 @@ describe('downloader', () => {
   });
 
   describe('retryPendingFiles — saved JSON backfill', () => {
+    test('keeps permanent failures skipped unless explicitly requested', async () => {
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'attachment-skip-failure-test-'));
+
+      try {
+        const { CONFIG, PATHS, initPaths } = require('../../lib/config');
+        CONFIG.outputDir = tmpDir;
+        CONFIG.downloadFiles = true;
+        CONFIG.downloadImages = true;
+        CONFIG.downloadCanvas = true;
+        CONFIG.downloadAttachments = true;
+        CONFIG.retryFailedFiles = false;
+        initPaths();
+        fs.mkdirSync(PATHS.jsonDir, { recursive: true });
+        fs.writeFileSync(path.join(PATHS.jsonDir, 'conversation.json'), JSON.stringify({
+          id: 'conv-known-failure',
+          mapping: {
+            node1: {
+              message: {
+                content: { content_type: 'text', parts: ['Document'] },
+                metadata: {
+                  attachments: [{ id: 'file-known-failure', name: 'missing.pdf', mime_type: 'application/pdf' }],
+                },
+              },
+            },
+          },
+        }));
+
+        global.fetch = jest.fn();
+        const progress = {
+          downloadedFileIds: [],
+          failedFileIds: { 'file-known-failure': 'file_not_found' },
+          fileResolverVersion: 2,
+        };
+
+        const downloaded = await retryPendingFiles('secret', progress);
+
+        expect(downloaded).toBe(0);
+        expect(progress.failedFileIds['file-known-failure']).toBe('file_not_found');
+        expect(progress.fileResolverVersion).toBe(2);
+        expect(global.fetch).not.toHaveBeenCalled();
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     test('discovers and downloads metadata attachments without re-fetching the conversation', async () => {
       const fs = require('fs');
       const os = require('os');
@@ -386,6 +476,7 @@ describe('downloader', () => {
         CONFIG.downloadImages = true;
         CONFIG.downloadCanvas = true;
         CONFIG.downloadAttachments = true;
+        CONFIG.retryFailedFiles = true;
         initPaths();
         fs.mkdirSync(PATHS.jsonDir, { recursive: true });
         fs.writeFileSync(path.join(PATHS.jsonDir, 'conversation.json'), JSON.stringify({
@@ -432,7 +523,7 @@ describe('downloader', () => {
         expect(downloaded).toBe(1);
         expect(progress.downloadedFileIds).toContain('file-backfill');
         expect(progress.failedFileIds['file-backfill']).toBeUndefined();
-        expect(progress.fileResolverVersion).toBe(2);
+        expect(progress.fileResolverVersion).toBe(3);
         expect(fs.existsSync(path.join(PATHS.filesDir, 'file-backfill.txt'))).toBe(true);
         expect(global.fetch.mock.calls.some(([url]) => url.includes('/conversation/conv-backfill'))).toBe(false);
       } finally {

@@ -96,6 +96,7 @@ The script tracks progress automatically:
 --max <n>               Only download the next N conversations this session (also -N, e.g. -7)
 --conv <ids>            Only download specific conversation ID(s), comma-separated
 --proj <ids>            Only download specific project ID(s), comma-separated
+--retry-failed-files    Retry file IDs previously recorded as permanently failed
 -n, --non-interactive   Run without any interactive prompts (requires --bearer or --token)
 --no-summary            Suppress the export summary at the end
 --no-donate             Suppress the donation message/prompt

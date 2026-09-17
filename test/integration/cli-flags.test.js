@@ -122,6 +122,11 @@ describe('CLI flag parsing', () => {
     expect(stdout).toContain('--proj');
   });
 
+  test('--help shows --retry-failed-files flag', () => {
+    const { stdout } = run(['--help']);
+    expect(stdout).toContain('--retry-failed-files');
+  });
+
   test('-N shorthand works like --max N', () => {
     // -3 should be converted to --max 3; will fail on API but not on flag parsing
     const { stdout, exitCode } = run(['-3', '--bearer', 'fake', '--non-interactive']);

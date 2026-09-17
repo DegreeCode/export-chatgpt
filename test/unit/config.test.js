@@ -32,6 +32,7 @@ describe('config', () => {
       expect(CONFIG.maxConversations).toBeNull();
       expect(CONFIG.convFilter).toBeNull();
       expect(CONFIG.projFilter).toBeNull();
+      expect(CONFIG.retryFailedFiles).toBe(false);
     });
 
     test('CONFIG is mutable', () => {
