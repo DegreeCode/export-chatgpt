@@ -90,6 +90,8 @@ describe('storage', () => {
         libraryLastCursor: null,
         libraryDownloadedFileIds: [],
         libraryFailedFileIds: {},
+        dots: {},
+        dotsFailedFileIds: {},
       });
     });
 
@@ -108,6 +110,8 @@ describe('storage', () => {
         libraryLastCursor: null,
         libraryDownloadedFileIds: ['library-file'],
         libraryFailedFileIds: {},
+        dots: { room: { messagesComplete: true, before: null } },
+        dotsFailedFileIds: { 'room~file': 'HTTP 404' },
       };
       saveProgress(data);
       const loaded = loadProgress();
@@ -132,6 +136,8 @@ describe('storage', () => {
       expect(loaded.libraryLastCursor).toBeNull();
       expect(loaded.libraryDownloadedFileIds).toEqual([]);
       expect(loaded.libraryFailedFileIds).toEqual({});
+      expect(loaded.dots).toEqual({});
+      expect(loaded.dotsFailedFileIds).toEqual({});
     });
 
     test('returns default for corrupted progress file', () => {

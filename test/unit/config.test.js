@@ -23,6 +23,10 @@ describe('config', () => {
       expect(CONFIG.projectsOnly).toBe(false);
       expect(CONFIG.includeLibrary).toBe(false);
       expect(CONFIG.libraryOnly).toBe(false);
+      expect(CONFIG.includeDots).toBe(false);
+      expect(CONFIG.dotsOnly).toBe(false);
+      expect(CONFIG.dotsPageSize).toBe(25);
+      expect(CONFIG.dotMessagePageSize).toBe(32);
       expect(CONFIG.downloadFiles).toBe(true);
       expect(CONFIG.downloadImages).toBe(true);
       expect(CONFIG.downloadCanvas).toBe(true);
@@ -58,6 +62,8 @@ describe('config', () => {
       expect(PATHS.libraryDir).toContain('library');
       expect(PATHS.libraryFilesDir).toContain('files');
       expect(PATHS.libraryIndexFile).toContain('library-index.json');
+      expect(PATHS.dotsDir).toContain('dots');
+      expect(PATHS.dotsIndexFile).toContain('dot-index.json');
 
       // All paths should contain the output dir base name (cross-platform)
       for (const val of Object.values(PATHS)) {

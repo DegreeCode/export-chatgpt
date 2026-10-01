@@ -133,6 +133,21 @@ describe('CLI flag parsing', () => {
     expect(stdout).toContain('--library-only');
   });
 
+  test('--help shows Dot export flags', () => {
+    const { stdout } = run(['--help']);
+    expect(stdout).toContain('--include-dots');
+    expect(stdout).toContain('--dots-only');
+  });
+
+  test('rejects incompatible only modes before authentication or network requests', () => {
+    for (const flags of [['--projects-only', '--dots-only'], ['--library-only', '--dots-only'], ['--projects-only', '--library-only']]) {
+      const { stdout, exitCode } = run(flags);
+      expect(exitCode).toBe(1);
+      expect(stdout).toContain('cannot be combined');
+      expect(stdout).not.toContain('Using provided Bearer token');
+    }
+  });
+
   test('-N shorthand works like --max N', () => {
     // -3 should be converted to --max 3; will fail on API but not on flag parsing
     const { stdout, exitCode } = run(['-3', '--bearer', 'fake', '--non-interactive']);

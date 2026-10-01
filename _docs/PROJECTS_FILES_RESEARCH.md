@@ -6,6 +6,23 @@ ChatGPT Projects (internally called "gizmos" with type "snorlax") store conversa
 
 This spec documents the API endpoints needed to export conversations from Projects.
 
+## Current Local Implementation Notes (2026-10-01)
+
+This is an observation/research document, not an official supported API contract.
+Examples below describe observed shapes, not a complete account-data schema.
+[README](../README.md) and [SPECIFICATION](../SPECIFICATION.md) describe the
+current local CLI and output layout.
+
+- Projects/files are enabled by default; use `--no-projects`, `--projects-only`, and granular `--no-*` file flags. Export scope does not use interactive questions.
+- Project conversations are filtered by authenticated-user ownership; shared/unknown-owner entries are excluded even if listed inside a shared project.
+- Regular archived chats need `--include-archived`; saved regular/project bodies need `--update` to refresh.
+- Conversation filenames use a 13-character ID prefix. Markdown follows the selected `current_node` branch, while JSON retains all branches returned in the mapping.
+- File extraction also handles attachments and Pro/Work `content_references`, not just image pointers. Work sandbox links are rewritten when matching durable references exist.
+- File resolvers can vary; signed URLs are refreshed before download, and browser cookies may be needed only for specific same-origin Library web routes. Cookie input does not guarantee access or fix deleted files.
+- The separate Library exporter recursively scans owned nodes and returned versions; the separate Dot exporter uses room/`CalpicoFile` APIs, not ordinary conversation-file assumptions.
+- Dot task metadata is not a body/history export. See [Dot research](DOTS_EXPORT_RESEARCH.md) for that limitation and pending capture requirements.
+- Optional deep-research SSE process capture described below is not implemented; embedded final results are supported.
+
 ---
 
 ## Authentication
@@ -293,30 +310,33 @@ const fileId = assetPointer.replace('sediment://', '');
 
 ## Implementation Recommendations
 
-### Suggested Output Structure
+### Current Output Structure (ordinary/project scopes)
 
 ```
-exports/
+exports/{user_id}/
+├── json/
+│   └── {date}_{title}_{13-character-id}.json
+├── markdown/
+│   └── {date}_{title}_{13-character-id}.md
 ├── projects/
-│   ├── Qwandery_Platform/
-│   │   ├── 2025-07-23_Terms_of_Service_Draft_68811872.json
-│   │   ├── 2025-07-23_Terms_of_Service_Draft_68811872.md
+│   ├── {ProjectName}/
+│   │   ├── json/
+│   │   ├── markdown/
 │   │   ├── files/
-│   │   │   └── file_00000000842871f5b6a1bab8e3499232.png
-│   │   └── ...
-│   ├── Qwandery_Mind_Solutions/
-│   │   └── ...
+│   │   └── conversation-index.json
 │   └── project-index.json
 ├── files/
-│   └── file_00000000842871f5b6a1bab8e3499232.png
-├── 2025-02-13_Some_Regular_Conversation_698e728e.json
-├── 2025-02-13_Some_Regular_Conversation_698e728e.md
-└── conversation-index.json
+├── conversation-index.json
+└── .export-progress.json
 ```
+
+Library and Dots add their own optional trees; see [README](../README.md).
 
 ### Progress Tracking
 
-Extend `.export-progress.json` to track project export state:
+The implementation extends `.export-progress.json` with project export state.
+The subset below omits later archive/file/Library/Dot fields, which are specified
+in [SPECIFICATION](../SPECIFICATION.md):
 
 ```json
 {
@@ -343,23 +363,23 @@ Extend `.export-progress.json` to track project export state:
 }
 ```
 
-### Suggested CLI Flags
+### Current CLI Usage (local checkout)
 
 ```bash
 # Export everything (regular + projects)
-node export-chatgpt.js --bearer "..." --include-projects
+node export-chatgpt.js
 
 # Export only projects
-node export-chatgpt.js --bearer "..." --projects-only
+node export-chatgpt.js --projects-only
 
-# Export only regular conversations (default, unchanged)
-node export-chatgpt.js --bearer "..."
+# Export only regular conversations (skip projects)
+node export-chatgpt.js --no-projects
 
-# Also download all images/attachments
-node export-chatgpt.js --bearer "..." --download-files
+# Default file downloads can be disabled
+node export-chatgpt.js --no-files
 
-# Combine flags
-node export-chatgpt.js --bearer "..." --include-projects --download-files
+# Add archived regular chats plus the optional Library and Dot scopes
+node export-chatgpt.js --include-archived --include-library --include-dots
 ```
 
 ### Sanitize Project Names for Folders
@@ -377,7 +397,7 @@ function sanitizeForFilename(name) {
 ### Export Flow
 
 ```
-1. If --include-projects or --projects-only:
+1. If projects are enabled (default, unless --no-projects) or --projects-only:
 
    a. INDEX PROJECTS
       - GET /gizmos/snorlax/sidebar?owned_only=true&conversations_per_gizmo=0
@@ -393,14 +413,14 @@ function sanitizeForFilename(name) {
       - For each conversation in each project:
         - GET /conversation/{id}
         - Save to exports/projects/{ProjectName}/
-        - If --download-files: extract and download all files
+        - If file downloads are enabled: extract and download referenced files
         - Track in progress file
 
 2. Unless --projects-only:
    - Run existing regular conversation export
-   - If --download-files: extract and download all files
+   - If file downloads are enabled: extract and download referenced files
 
-3. If --download-files:
+3. If file downloads are enabled:
    - Scan conversation JSON for asset_pointer references
    - For each unique file:
      - GET /files/download/{file_id}?conversation_id={id}
@@ -567,11 +587,11 @@ The stream ends with a `final_message` object containing the complete response, 
 
 2. **Async Task IDs** for deep research have format `deepresch_{32_hex_chars}`
 
-3. **Timestamps** are ISO 8601 format (same as regular conversations)
+3. **Timestamps** may be ISO strings or epoch seconds; the formatter accepts both
 
 4. **Conversation data** inside projects is identical to regular conversations — same structure, same fields, same download endpoint
 
-5. **File IDs** in conversations use `sediment://file_{id}` format in `asset_pointer` fields — strip the `sediment://` prefix to get the file ID for the download API
+5. **File IDs** may occur in `sediment://` pointers, attachment metadata or Pro/Work `content_references`; derived PDF page previews must be normalized to their source file
 
 6. **Download URLs** are signed and time-limited — fetch them fresh for each download, don't cache them
 
